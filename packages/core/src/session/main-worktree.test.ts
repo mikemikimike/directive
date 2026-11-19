@@ -47,15 +47,30 @@ describe("main worktree discriminator (#4066)", () => {
     expect(sameFilesystemPath(root, realpathSync.native(root))).toBe(true);
   });
 
-  it("exposes when realpath fails and keeps the fallback comparison", () => {
+  it("propagates realpath failure when filesystem identity cannot be compared", () => {
     const root = mkdtempSync(join(tmpdir(), "main-wt-realpath-fallback-"));
     temps.push(root);
+    const realpathError = Object.assign(new Error("inaccessible"), { code: "EACCES" });
     const realpathSpy = vi.spyOn(realpathSync, "native").mockImplementation(() => {
-      throw Object.assign(new Error("inaccessible"), { code: "EACCES" });
+      throw realpathError;
     });
     try {
-      expect(canonicalFilesystemPath(root)).toEqual({ path: resolve(root), status: "fallback" });
-      expect(sameFilesystemPath(root, root)).toBe(true);
+      expect(canonicalFilesystemPath(root)).toMatchObject({
+        path: resolve(root),
+        status: "fallback",
+        error: realpathError,
+      });
+      let comparisonError: unknown = null;
+      try {
+        sameFilesystemPath(root, root);
+      } catch (error: unknown) {
+        comparisonError = error;
+      }
+      expect(comparisonError).toBeInstanceOf(Error);
+      expect(comparisonError).toMatchObject({
+        message: expect.stringContaining("Cannot compare filesystem path identity"),
+        cause: realpathError,
+      });
     } finally {
       realpathSpy.mockRestore();
     }

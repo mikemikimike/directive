@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Shell authorization blocks indirect writes to protected state while allowing read-only inspection and safe copies. Refs #6292.
+- Filesystem identity checks now surface `realpath` failures instead of deciding against unresolved fallback paths.
 
 ### Removed
 

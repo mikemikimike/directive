@@ -15,17 +15,17 @@
     "narratives": {
       "Description": "Address actionable review findings on deftai/directive#6307 concerning filesystem path canonicalization and protected-write authorization classification.",
       "Origin": "https://github.com/deftai/directive/pull/6307#pullrequestreview-5926047497",
-      "Overview": "Keep existing path-comparison behavior while exposing when realpath resolution fell back. Keep GitHub CLI option parsing aligned with normalized tokens, cover accepted value forms, and document the user-visible protected-write behavior clearly.",
-      "ImplementationPlan": "1) Expose canonical, partial, and fallback path-resolution status and test a realpath failure. 2) Normalize GitHub CLI value-flag comparisons consistently and test repository flags before mutating verbs. 3) Verify protected-output flag spellings against the read-only proof and add regression tests for any actionable gap. 4) Rewrite the Unreleased changelog entry in user-visible terms."
+      "Overview": "Surface realpath failures wherever filesystem identity determines a decision, while retaining canonical and partial path handling. Keep GitHub CLI option parsing aligned with normalized tokens, cover accepted value forms, and document the user-visible protected-write behavior clearly.",
+      "ImplementationPlan": "1) Expose canonical, partial, and fallback path-resolution status; propagate realpath failures through identity comparisons and test their cause. 2) Normalize GitHub CLI value-flag comparisons consistently and test repository flags before mutating verbs. 3) Verify protected-output flag spellings against the read-only proof and add regression tests for any actionable gap. 4) Rewrite the Unreleased changelog entry in user-visible terms."
     },
     "items": [
       {
         "id": "review.path-canonicalization",
-        "title": "Expose filesystem canonicalization fallback",
+        "title": "Propagate filesystem identity failures",
         "status": "proposed",
         "narrative": {
-          "Acceptance": "A caller can distinguish fully canonicalized paths, paths with missing suffixes, and realpath fallback; sameFilesystemPath retains its existing string-comparison behavior.",
-          "Traces": "PR #6307 review 5926047497 and latest SLizard review 5931238688."
+          "Acceptance": "A caller can distinguish fully canonicalized paths, paths with missing suffixes, and realpath fallback; sameFilesystemPath propagates a realpath failure with the original error as its cause instead of comparing unresolved paths.",
+          "Traces": "PR #6307 reviews 5926047497 and 5942324533, and SLizard review 5931238688."
         }
       },
       {
@@ -59,7 +59,7 @@
       "clauses": [
         {
           "id": 1,
-          "text": "Path comparison keeps its current fallback result while exposing whether realpath fully succeeded, resolved only the existing prefix, or failed; tests deterministically cover the failure state.",
+          "text": "Path comparison preserves canonical and missing-suffix handling while sameFilesystemPath throws with the original realpath error as its cause when canonicalization falls back; tests deterministically cover the failure state.",
           "artifact_path": "packages/core/src/session/main-worktree.ts",
           "ambiguous": false,
           "provenance": "review"

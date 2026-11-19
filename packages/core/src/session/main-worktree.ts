@@ -11,10 +11,9 @@ import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "n
 import { basename, dirname, join, resolve } from "node:path";
 import { defaultGitRunner, type GitRunner, gitCommonDir } from "./git.js";
 
-export type CanonicalFilesystemPath = {
-  path: string;
-  status: "canonical" | "partial" | "fallback";
-};
+export type CanonicalFilesystemPath =
+  | { path: string; status: "canonical" | "partial" }
+  | { path: string; status: "fallback"; error: unknown };
 
 export function canonicalFilesystemPath(path: string): CanonicalFilesystemPath {
   let cursor = resolve(path);
@@ -25,19 +24,31 @@ export function canonicalFilesystemPath(path: string): CanonicalFilesystemPath {
     missing.unshift(basename(cursor));
     cursor = parent;
   }
-  let realpathSucceeded = true;
   try {
     cursor = realpathSync.native(cursor);
-  } catch {
-    realpathSucceeded = false;
+  } catch (error: unknown) {
+    return { path: resolve(cursor, ...missing), status: "fallback", error };
   }
-  const status = !realpathSucceeded ? "fallback" : missing.length > 0 ? "partial" : "canonical";
-  return { path: resolve(cursor, ...missing), status };
+  const resolvedPath = resolve(cursor, ...missing);
+  return missing.length > 0
+    ? { path: resolvedPath, status: "partial" }
+    : { path: resolvedPath, status: "canonical" };
+}
+
+function pathForIdentityComparison(path: string): string {
+  const canonical = canonicalFilesystemPath(path);
+  if (canonical.status === "fallback") {
+    throw new Error(
+      `Cannot compare filesystem path identity because realpath failed for "${path}"`,
+      { cause: canonical.error },
+    );
+  }
+  return canonical.path;
 }
 
 export function sameFilesystemPath(left: string, right: string): boolean {
-  const a = canonicalFilesystemPath(left).path;
-  const b = canonicalFilesystemPath(right).path;
+  const a = pathForIdentityComparison(left);
+  const b = pathForIdentityComparison(right);
   if (process.platform === "win32") return a.toLowerCase() === b.toLowerCase();
   return a === b;
 }
